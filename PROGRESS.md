@@ -36,6 +36,7 @@
 - [x] Added vLLM launcher support for `TENSOR_PARALLEL_SIZE` (multi-GPU serving, e.g. GPUs `2,3`).
 - [x] Added README examples for `curl` usage and token-budget guardrails (`prompt_tokens + max_tokens <= max_model_len`).
 - [x] Updated and pushed Hugging Face model card for `mr-dee/qwen3-ascii-tui-lora`.
+- [x] Embedded a tracked loss-curve image in `README.md` (`docs/figures/loss_curve.png`).
 
 ## Run Metrics (2026-02-06)
 

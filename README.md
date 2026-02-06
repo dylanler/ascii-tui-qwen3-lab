@@ -211,6 +211,10 @@ This executes:
   - `artifacts/qwen3_ascii_tui_lora/loss_curve.png`
   - `artifacts/qwen3_ascii_tui_lora/sample_generations.md`
 
+## Loss Curve
+
+![Training and evaluation loss curve](docs/figures/loss_curve.png)
+
 ## Notes
 
 - If your GPU topology differs, keep `--nproc_per_node=4` and set `CUDA_VISIBLE_DEVICES` to the desired four devices.
