@@ -18,6 +18,8 @@
 - [x] Implemented loss-curve plotting from trainer logs.
 - [x] Added one-command orchestration script for the full run.
 - [x] Added complete experiment README with commands and design details.
+- [x] Generated `uv.lock` and synced dependencies with `uv sync`.
+- [x] Validated script CLIs and Python syntax compilation.
+- [x] Ran a local smoke test for loss plotting output.
 - [ ] Execute full run end-to-end on local hardware (requires API key, model access, and runtime budget).
 - [ ] Record final metrics and attach `loss_curve.png` snapshot.
-
