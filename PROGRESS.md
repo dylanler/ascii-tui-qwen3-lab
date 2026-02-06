@@ -33,6 +33,9 @@
   - required topics present in dataset and qualitative output file
 - [x] Added vLLM OpenAI-compatible endpoint scripts for LoRA serving + endpoint smoke test client.
 - [x] Validated vLLM endpoint startup and live inference on `http://127.0.0.1:8010/v1`.
+- [x] Added vLLM launcher support for `TENSOR_PARALLEL_SIZE` (multi-GPU serving, e.g. GPUs `2,3`).
+- [x] Added README examples for `curl` usage and token-budget guardrails (`prompt_tokens + max_tokens <= max_model_len`).
+- [x] Updated and pushed Hugging Face model card for `mr-dee/qwen3-ascii-tui-lora`.
 
 ## Run Metrics (2026-02-06)
 

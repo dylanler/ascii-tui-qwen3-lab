@@ -15,6 +15,11 @@ This project defines a full experiment to fine-tune `Qwen3 0.6B` for generating 
 - Track and visualize the loss curve.
 - Keep environment management clean with `uv`.
 
+## Published Artifacts
+
+- GitHub project: `https://github.com/dylanler/ascii-tui-qwen3-lab`
+- Hugging Face adapter: `https://huggingface.co/mr-dee/qwen3-ascii-tui-lora`
+
 ## Project Layout
 
 ```text
@@ -134,6 +139,13 @@ Start an OpenAI-compatible endpoint on one GPU:
 CUDA_VISIBLE_DEVICES=0 bash scripts/start_vllm_endpoint.sh
 ```
 
+Start endpoint on GPUs `2,3` (tensor parallel = 2):
+
+```bash
+CUDA_VISIBLE_DEVICES=2,3 TENSOR_PARALLEL_SIZE=2 PORT=8010 \
+  bash scripts/start_vllm_endpoint.sh
+```
+
 If port `8000` is busy:
 
 ```bash
@@ -152,6 +164,26 @@ uv run python scripts/test_vllm_endpoint.py \
   --base-url http://127.0.0.1:8000/v1 \
   --model qwen3-ascii-tui-lora
 ```
+
+Example `curl` request:
+
+```bash
+curl http://127.0.0.1:8010/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "qwen3-ascii-tui-lora",
+    "messages": [
+      {"role":"system","content":"You generate high-quality terminal ASCII learning diagrams."},
+      {"role":"user","content":"Explain the lifecycle of a volcano with a compact ASCII flow diagram and 3 takeaways."}
+    ],
+    "max_tokens": 500,
+    "temperature": 0.2
+  }'
+```
+
+Token limit note:
+- vLLM requires `prompt_tokens + max_tokens <= max_model_len`.
+- With `MAX_MODEL_LEN=4096`, do not set `max_tokens` to `4096` or `10000` for normal prompts.
 
 ## One-command run
 

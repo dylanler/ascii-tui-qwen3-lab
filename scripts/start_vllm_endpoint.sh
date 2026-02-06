@@ -11,6 +11,7 @@ MAX_MODEL_LEN="${MAX_MODEL_LEN:-4096}"
 GPU_MEMORY_UTILIZATION="${GPU_MEMORY_UTILIZATION:-0.90}"
 MAX_LORA_RANK="${MAX_LORA_RANK:-64}"
 DTYPE="${DTYPE:-auto}"
+TENSOR_PARALLEL_SIZE="${TENSOR_PARALLEL_SIZE:-1}"
 
 if [[ ! -d "${ADAPTER_PATH}" ]]; then
   echo "ERROR: Adapter directory not found: ${ADAPTER_PATH}"
@@ -27,6 +28,7 @@ echo "  base model:        ${BASE_MODEL}"
 echo "  served model name: ${SERVED_MODEL_NAME}"
 echo "  lora model name:   ${LORA_NAME}"
 echo "  adapter path:      ${ADAPTER_PATH}"
+echo "  tensor parallel:   ${TENSOR_PARALLEL_SIZE}"
 echo "  endpoint:          http://${HOST}:${PORT}/v1"
 echo ""
 echo "Use this model in requests to apply LoRA:"
@@ -40,6 +42,7 @@ exec uv run vllm serve "${BASE_MODEL}" \
   --enable-lora \
   --lora-modules "${LORA_NAME}=${ADAPTER_PATH}" \
   --max-lora-rank "${MAX_LORA_RANK}" \
+  --tensor-parallel-size "${TENSOR_PARALLEL_SIZE}" \
   --dtype "${DTYPE}" \
   --gpu-memory-utilization "${GPU_MEMORY_UTILIZATION}" \
   --max-model-len "${MAX_MODEL_LEN}"
