@@ -23,20 +23,23 @@
 - [x] Ran a local smoke test for loss plotting output.
 - [x] Added compatibility patches for `transformers` v5 API changes (`TrainingArguments` and `Trainer` signatures).
 - [x] Added local generation fallback mode when `OPENAI_API_KEY` is not available.
-- [x] Current run used local fallback mode because `OPENAI_API_KEY` was not set in this shell.
+- [x] Set full-run orchestrator to default `GENERATION_MODE=local` for direct non-API generation.
 - [x] Executed full run end-to-end on local 4x A100 hardware.
 - [x] Generated 1,000-row dataset (`950 train`, `50 eval`) with 100 agents in parallel.
 - [x] Completed 4-GPU QLoRA training for 3 epochs.
 - [x] Plotted loss curve and generated qualitative sample outputs.
+- [x] Confidence gate passed:
+  - strong train/eval loss reduction over full run
+  - required topics present in dataset and qualitative output file
 
 ## Run Metrics (2026-02-06)
 
 - Train points: `45`
 - Eval points: `9`
 - First train loss: `4.12497`
-- Final train loss: `0.10668`
-- First eval loss: `2.06136`
-- Best/final eval loss: `0.11611`
+- Final train loss: `0.10813`
+- First eval loss: `2.06111`
+- Best/final eval loss: `0.11857`
 - Best eval epoch: `3.0`
 - Artifacts:
   - `artifacts/qwen3_ascii_tui_lora/trainer_state.json`

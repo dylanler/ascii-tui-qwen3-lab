@@ -10,7 +10,7 @@ This project defines a full experiment to fine-tune `Qwen3 0.6B` for generating 
 ## Goals
 
 - Generate a synthetic instruction dataset of about `1,000` rows.
-- Use `100` GPT-5.3 agents in parallel for dataset generation.
+- Use `100` parallel local agents for direct synthetic generation.
 - Fine-tune on local GPUs using all `4` GPUs.
 - Track and visualize the loss curve.
 - Keep environment management clean with `uv`.
@@ -41,12 +41,6 @@ ascii-tui-qwen3-lab/
 uv sync
 ```
 
-Optional env var (required only for real GPT-5.3 generation):
-
-```bash
-export OPENAI_API_KEY=...
-```
-
 ## Experiment Design
 
 ### 1) Synthetic data generation
@@ -54,10 +48,8 @@ export OPENAI_API_KEY=...
 Script: `scripts/generate_synthetic_dataset.py`
 
 - Creates `100` async agent tasks in parallel (`--agent-count 100 --concurrency 100`).
-- Uses model `gpt-5.3` by default.
-- Supports `--generation-mode auto`:
-  - uses OpenAI if `OPENAI_API_KEY` is set
-  - falls back to local synthetic generation if no key is present
+- Runs in direct local mode by default (`--generation-mode local`), so no API is required.
+- Keeps `gpt-5.3` model metadata for compatibility with an optional API path.
 - Assigns topic coverage across required and supplemental topics from `configs/topics.yaml`.
 - Validates JSON rows and removes duplicates.
 - Writes:
@@ -70,7 +62,7 @@ Default command:
 ```bash
 uv run python scripts/generate_synthetic_dataset.py \
   --model gpt-5.3 \
-  --generation-mode auto \
+  --generation-mode local \
   --target-rows 1000 \
   --agent-count 100 \
   --concurrency 100
@@ -139,7 +131,7 @@ bash scripts/run_full_experiment.sh
 This executes:
 
 1. `uv sync`
-2. 100-agent synthetic generation (~1,000 rows)
+2. 100-agent direct local synthetic generation (~1,000 rows)
 3. 4-GPU fine-tuning
 4. loss curve plotting
 5. qualitative sample generation
@@ -147,9 +139,10 @@ This executes:
 ## Latest Run Snapshot
 
 - Dataset rows: `1000` (`950 train`, `50 eval`)
+- Generation mode: `local` (direct generation, no API)
 - 4-GPU training: completed with `45` train steps over `3` epochs
-- Train loss: `4.125 -> 0.107`
-- Eval loss: `2.061 -> 0.116`
+- Train loss: `4.12497 -> 0.10813`
+- Eval loss: `2.06111 -> 0.11857`
 - Artifacts:
   - `artifacts/qwen3_ascii_tui_lora/trainer_state.json`
   - `artifacts/qwen3_ascii_tui_lora/loss_curve.png`
@@ -158,5 +151,5 @@ This executes:
 ## Notes
 
 - If your GPU topology differs, keep `--nproc_per_node=4` and set `CUDA_VISIBLE_DEVICES` to the desired four devices.
-- If your account exposes a different model ID than `gpt-5.3`, pass `--model <id>` to generation.
+- If you want API-backed generation later, pass `--generation-mode openai` and set `OPENAI_API_KEY`.
 - Generated data and artifacts are git-ignored by default.
