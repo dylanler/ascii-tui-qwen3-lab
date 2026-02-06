@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import inspect
 import json
 import os
 from pathlib import Path
@@ -16,7 +17,7 @@ from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
     BitsAndBytesConfig,
-    DataCollatorForLanguageModeling,
+    DataCollatorForSeq2Seq,
     Trainer,
     TrainingArguments,
 )
@@ -165,7 +166,7 @@ def main() -> None:
     model = build_model(args)
     model.print_trainable_parameters()
 
-    training_args = TrainingArguments(
+    training_kwargs = dict(
         output_dir=str(args.output_dir),
         num_train_epochs=args.num_train_epochs,
         learning_rate=args.learning_rate,
@@ -174,7 +175,6 @@ def main() -> None:
         per_device_eval_batch_size=args.per_device_eval_batch_size,
         gradient_accumulation_steps=args.gradient_accumulation_steps,
         logging_steps=args.logging_steps,
-        evaluation_strategy="steps",
         eval_steps=args.eval_steps,
         save_strategy="steps",
         save_steps=args.save_steps,
@@ -182,7 +182,7 @@ def main() -> None:
         bf16=True,
         lr_scheduler_type="cosine",
         optim="paged_adamw_8bit",
-        report_to=["tensorboard"],
+        report_to="none",
         gradient_checkpointing=True,
         ddp_find_unused_parameters=False,
         load_best_model_at_end=True,
@@ -190,15 +190,34 @@ def main() -> None:
         greater_is_better=False,
         seed=args.seed,
     )
+    ta_signature = inspect.signature(TrainingArguments.__init__).parameters
+    if "evaluation_strategy" in ta_signature:
+        training_kwargs["evaluation_strategy"] = "steps"
+    else:
+        training_kwargs["eval_strategy"] = "steps"
+    training_args = TrainingArguments(**training_kwargs)
 
-    trainer = Trainer(
+    collator = DataCollatorForSeq2Seq(
+        tokenizer=tokenizer,
+        model=model,
+        padding=True,
+        label_pad_token_id=-100,
+        return_tensors="pt",
+    )
+
+    trainer_kwargs = dict(
         model=model,
         args=training_args,
         train_dataset=tokenized["train"],
         eval_dataset=tokenized["eval"],
-        tokenizer=tokenizer,
-        data_collator=DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False),
+        data_collator=collator,
     )
+    trainer_signature = inspect.signature(Trainer.__init__).parameters
+    if "tokenizer" in trainer_signature:
+        trainer_kwargs["tokenizer"] = tokenizer
+    elif "processing_class" in trainer_signature:
+        trainer_kwargs["processing_class"] = tokenizer
+    trainer = Trainer(**trainer_kwargs)
     train_result = trainer.train()
     trainer.save_model()
     trainer.save_state()
@@ -215,4 +234,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

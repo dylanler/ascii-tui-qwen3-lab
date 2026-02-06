@@ -21,5 +21,24 @@
 - [x] Generated `uv.lock` and synced dependencies with `uv sync`.
 - [x] Validated script CLIs and Python syntax compilation.
 - [x] Ran a local smoke test for loss plotting output.
-- [ ] Execute full run end-to-end on local hardware (requires API key, model access, and runtime budget).
-- [ ] Record final metrics and attach `loss_curve.png` snapshot.
+- [x] Added compatibility patches for `transformers` v5 API changes (`TrainingArguments` and `Trainer` signatures).
+- [x] Added local generation fallback mode when `OPENAI_API_KEY` is not available.
+- [x] Current run used local fallback mode because `OPENAI_API_KEY` was not set in this shell.
+- [x] Executed full run end-to-end on local 4x A100 hardware.
+- [x] Generated 1,000-row dataset (`950 train`, `50 eval`) with 100 agents in parallel.
+- [x] Completed 4-GPU QLoRA training for 3 epochs.
+- [x] Plotted loss curve and generated qualitative sample outputs.
+
+## Run Metrics (2026-02-06)
+
+- Train points: `45`
+- Eval points: `9`
+- First train loss: `4.12497`
+- Final train loss: `0.10668`
+- First eval loss: `2.06136`
+- Best/final eval loss: `0.11611`
+- Best eval epoch: `3.0`
+- Artifacts:
+  - `artifacts/qwen3_ascii_tui_lora/trainer_state.json`
+  - `artifacts/qwen3_ascii_tui_lora/loss_curve.png`
+  - `artifacts/qwen3_ascii_tui_lora/sample_generations.md`

@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import math
 import os
 import random
 import re
@@ -81,6 +80,50 @@ AGENT_PERSONAS = [
 ]
 
 
+DIAGRAM_STYLES = ["ascii_art", "tui_flow", "hybrid"]
+DIFFICULTIES = ["beginner", "intermediate", "advanced"]
+
+TOPIC_BLUEPRINTS: dict[str, dict[str, Any]] = {
+    "lifecycle of a volcano": {
+        "stages": [
+            "Mantle melting",
+            "Magma storage",
+            "Gas pressure build-up",
+            "Eruption + lava flow",
+            "Cooling + weathering",
+        ],
+        "drivers": ["heat", "pressure", "volatiles", "plate motion"],
+    },
+    "how does gravity work": {
+        "stages": [
+            "Mass present",
+            "Spacetime curves",
+            "Objects accelerate inward",
+            "Orbits form",
+            "Energy redistributes",
+        ],
+        "drivers": ["mass", "distance", "curvature", "velocity"],
+    },
+    "double-slit experiment": {
+        "stages": [
+            "Source emits particles/waves",
+            "Two slits define paths",
+            "Path amplitudes superpose",
+            "Detector records fringes",
+            "Measurement changes pattern",
+        ],
+        "drivers": ["wavelength", "phase", "path info", "detector coupling"],
+    },
+}
+
+INSTRUCTION_TEMPLATES = [
+    "Teach '{topic}' using a terminal-first diagram and include intuition + mechanism.",
+    "Create a concise TUI-style explanation of '{topic}' with a stepwise flow diagram.",
+    "Explain '{topic}' for a CLI learner with an ASCII diagram and key takeaways.",
+    "Build a side-by-side concept map for '{topic}' and describe causal links clearly.",
+]
+
+
 @dataclass
 class GenerationConfig:
     model: str
@@ -91,6 +134,7 @@ class GenerationConfig:
     temperature: float
     max_output_tokens: int
     seed: int
+    generation_mode: str
 
 
 def parse_args() -> argparse.Namespace:
@@ -105,6 +149,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--concurrency", type=int, default=100)
     parser.add_argument("--eval-ratio", type=float, default=0.05)
     parser.add_argument("--model", type=str, default="gpt-5.3")
+    parser.add_argument(
+        "--generation-mode",
+        type=str,
+        choices=["auto", "openai", "local"],
+        default="auto",
+        help="auto: use OpenAI when OPENAI_API_KEY is set, otherwise local synthetic generation.",
+    )
     parser.add_argument("--temperature", type=float, default=0.9)
     parser.add_argument("--max-output-tokens", type=int, default=2500)
     parser.add_argument("--seed", type=int, default=42)
@@ -192,6 +243,136 @@ def normalize_row(row: dict[str, Any], topic_hint: str, agent_id: int) -> dict[s
     return out
 
 
+def topic_words(topic: str) -> list[str]:
+    words = re.findall(r"[a-zA-Z0-9]+", topic.lower())
+    return [w for w in words if len(w) > 2]
+
+
+def build_topic_blueprint(topic: str, rng: random.Random) -> dict[str, Any]:
+    if topic in TOPIC_BLUEPRINTS:
+        return TOPIC_BLUEPRINTS[topic]
+    words = topic_words(topic)
+    root = words[0] if words else "system"
+    return {
+        "stages": [
+            f"{root} setup",
+            f"{root} trigger",
+            f"{root} interaction",
+            f"{root} observable outcome",
+            f"{root} feedback loop",
+        ],
+        "drivers": rng.sample(
+            ["energy", "forces", "constraints", "timing", "scale", "information"],
+            k=4,
+        ),
+    }
+
+
+def build_explanation(topic: str, blueprint: dict[str, Any], difficulty: str) -> str:
+    stages = blueprint["stages"]
+    drivers = blueprint["drivers"]
+    if difficulty == "beginner":
+        return (
+            f"{topic.title()} can be understood as a sequence of cause-and-effect steps. "
+            f"It starts with {stages[0].lower()}, then moves through {stages[1].lower()} "
+            f"and {stages[2].lower()} before ending in {stages[-1].lower()}."
+        )
+    if difficulty == "advanced":
+        return (
+            f"{topic.title()} emerges from coupled dynamics across {', '.join(drivers)}. "
+            f"Use the diagram to track state transitions from {stages[0].lower()} to "
+            f"{stages[-1].lower()}, including the feedback pathway."
+        )
+    return (
+        f"{topic.title()} follows a process where {stages[0].lower()} changes system state, "
+        f"which drives {stages[1].lower()} and {stages[2].lower()}. The resulting behavior is "
+        f"governed by {drivers[0]} and {drivers[1]}."
+    )
+
+
+def truncate_cell(text: str, width: int = 32) -> str:
+    if len(text) <= width:
+        return text
+    return text[: width - 3] + "..."
+
+
+def build_ascii_diagram(topic: str, blueprint: dict[str, Any], style: str) -> str:
+    stages = blueprint["stages"]
+    drivers = blueprint["drivers"]
+    title = truncate_cell(topic.title(), 60)
+    if style == "ascii_art":
+        lines = [f"+{'-' * 64}+", f"| {title:<62} |", f"+{'=' * 64}+"]
+        for idx, stage in enumerate(stages, start=1):
+            lines.append(f"| [{idx}] {truncate_cell(stage, 56):<56} |")
+            if idx < len(stages):
+                lines.append(f"| {' ' * 26} |")
+                lines.append(f"| {'v':^62} |")
+        lines.append(f"+{'-' * 64}+")
+        lines.append(f"Drivers: {', '.join(drivers)}")
+        return "\n".join(lines)
+
+    if style == "tui_flow":
+        return "\n".join(
+            [
+                f"[{title}]",
+                f"  -> (1) {stages[0]}",
+                f"      -> (2) {stages[1]}",
+                f"          -> (3) {stages[2]}",
+                f"              -> (4) {stages[3]}",
+                f"                  -> (5) {stages[4]}",
+                "",
+                f"control knobs: {drivers[0]} | {drivers[1]} | {drivers[2]} | {drivers[3]}",
+            ]
+        )
+
+    # hybrid
+    left = stages[:3]
+    right = stages[3:]
+    return "\n".join(
+        [
+            f"TOPIC: {title}",
+            "+------------------------------+    +------------------------------+",
+            f"| Process lane                 |    | Outcome lane                |",
+            "+------------------------------+    +------------------------------+",
+            f"| 1) {truncate_cell(left[0], 24):<24} | -> | 4) {truncate_cell(right[0], 24):<24} |",
+            f"| 2) {truncate_cell(left[1], 24):<24} | -> | 5) {truncate_cell(right[1], 24):<24} |",
+            f"| 3) {truncate_cell(left[2], 24):<24} |    | Drivers: {truncate_cell(', '.join(drivers), 20):<20} |",
+            "+------------------------------+    +------------------------------+",
+        ]
+    )
+
+
+def local_example(topic: str, agent_id: int, sample_idx: int, seed: int) -> dict[str, Any]:
+    rng = random.Random(seed + (agent_id * 1000) + sample_idx)
+    style = DIAGRAM_STYLES[(agent_id + sample_idx) % len(DIAGRAM_STYLES)]
+    difficulty = DIFFICULTIES[(agent_id + sample_idx) % len(DIFFICULTIES)]
+    blueprint = build_topic_blueprint(topic, rng)
+    explanation = build_explanation(topic, blueprint, difficulty=difficulty)
+    diagram = build_ascii_diagram(topic, blueprint, style=style)
+    instruction = rng.choice(INSTRUCTION_TEMPLATES).format(topic=topic)
+    tags = sorted(set((topic_words(topic)[:3] + ["ascii", "tui", style, difficulty])))
+    response = (
+        f"{explanation}\n\n"
+        f"{diagram}\n\n"
+        f"Key takeaways:\n"
+        f"- Main chain: {blueprint['stages'][0]} -> {blueprint['stages'][2]} -> {blueprint['stages'][-1]}.\n"
+        f"- Pay attention to {blueprint['drivers'][0]} and {blueprint['drivers'][1]}.\n"
+        f"- Agent profile #{agent_id} sample #{sample_idx} keeps this example distinct."
+    )
+    return normalize_row(
+        {
+            "topic": topic,
+            "instruction": instruction,
+            "response": response,
+            "diagram_style": style,
+            "difficulty": difficulty,
+            "tags": tags[:8],
+        },
+        topic_hint=topic,
+        agent_id=agent_id,
+    )
+
+
 async def request_examples(
     client: AsyncOpenAI,
     cfg: GenerationConfig,
@@ -244,7 +425,7 @@ async def request_examples(
             return rows
 
 
-async def run_agent(
+async def run_agent_openai(
     client: AsyncOpenAI,
     cfg: GenerationConfig,
     agent_id: int,
@@ -257,6 +438,19 @@ async def run_agent(
         async with sem:
             rows = await request_examples(client, cfg, agent_id=agent_id, topics=batch_topics)
         out.extend(rows)
+    return out
+
+
+async def run_agent_local(
+    cfg: GenerationConfig,
+    agent_id: int,
+    topics: list[str],
+    sem: asyncio.Semaphore,
+) -> list[dict[str, Any]]:
+    out: list[dict[str, Any]] = []
+    async with sem:
+        for sample_idx, topic in enumerate(topics):
+            out.append(local_example(topic, agent_id=agent_id, sample_idx=sample_idx, seed=cfg.seed))
     return out
 
 
@@ -297,10 +491,14 @@ def write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
 
 
 async def async_main(args: argparse.Namespace) -> None:
-    if not os.environ.get("OPENAI_API_KEY"):
-        raise EnvironmentError("OPENAI_API_KEY is required.")
     if args.agent_count != 100:
         raise ValueError("Use --agent-count 100 to satisfy the 100-agent requirement.")
+    has_openai_key = bool(os.environ.get("OPENAI_API_KEY"))
+    if args.generation_mode == "openai" and not has_openai_key:
+        raise EnvironmentError("OPENAI_API_KEY is required for --generation-mode openai.")
+    mode = args.generation_mode
+    if mode == "auto":
+        mode = "openai" if has_openai_key else "local"
 
     required_topics, supplemental_topics = load_topics(args.topics_config)
     topic_plan = build_topic_plan(required_topics, supplemental_topics, args.target_rows, args.seed)
@@ -315,16 +513,24 @@ async def async_main(args: argparse.Namespace) -> None:
         temperature=args.temperature,
         max_output_tokens=args.max_output_tokens,
         seed=args.seed,
+        generation_mode=mode,
     )
 
     sem = asyncio.Semaphore(args.concurrency)
-    client = AsyncOpenAI()
-
-    tasks = [
-        run_agent(client, cfg=cfg, agent_id=agent_id, topics=topics, sem=sem)
-        for agent_id, topics in enumerate(assignments)
-        if topics
-    ]
+    print(f"Generation mode: {mode} (agents={args.agent_count}, concurrency={args.concurrency})")
+    if mode == "openai":
+        client = AsyncOpenAI()
+        tasks = [
+            run_agent_openai(client, cfg=cfg, agent_id=agent_id, topics=topics, sem=sem)
+            for agent_id, topics in enumerate(assignments)
+            if topics
+        ]
+    else:
+        tasks = [
+            run_agent_local(cfg=cfg, agent_id=agent_id, topics=topics, sem=sem)
+            for agent_id, topics in enumerate(assignments)
+            if topics
+        ]
     per_agent_rows = await asyncio.gather(*tasks)
     rows = [row for chunk in per_agent_rows for row in chunk]
     rows = dedupe_rows(rows)
@@ -360,4 +566,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

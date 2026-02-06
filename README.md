@@ -28,6 +28,7 @@ ascii-tui-qwen3-lab/
 │   ├── generate_synthetic_dataset.py
 │   ├── train_qwen3_ascii_tui.py
 │   ├── plot_loss_curve.py
+│   ├── generate_samples.py
 │   └── run_full_experiment.sh
 ├── PROGRESS.md
 ├── README.md
@@ -40,7 +41,7 @@ ascii-tui-qwen3-lab/
 uv sync
 ```
 
-Required env vars:
+Optional env var (required only for real GPT-5.3 generation):
 
 ```bash
 export OPENAI_API_KEY=...
@@ -54,6 +55,9 @@ Script: `scripts/generate_synthetic_dataset.py`
 
 - Creates `100` async agent tasks in parallel (`--agent-count 100 --concurrency 100`).
 - Uses model `gpt-5.3` by default.
+- Supports `--generation-mode auto`:
+  - uses OpenAI if `OPENAI_API_KEY` is set
+  - falls back to local synthetic generation if no key is present
 - Assigns topic coverage across required and supplemental topics from `configs/topics.yaml`.
 - Validates JSON rows and removes duplicates.
 - Writes:
@@ -66,6 +70,7 @@ Default command:
 ```bash
 uv run python scripts/generate_synthetic_dataset.py \
   --model gpt-5.3 \
+  --generation-mode auto \
   --target-rows 1000 \
   --agent-count 100 \
   --concurrency 100
@@ -85,7 +90,11 @@ uv run torchrun --nproc_per_node=4 scripts/train_qwen3_ascii_tui.py \
   --model-name Qwen/Qwen3-0.6B \
   --train-file data/processed/train.jsonl \
   --eval-file data/processed/eval.jsonl \
-  --output-dir artifacts/qwen3_ascii_tui_lora
+  --output-dir artifacts/qwen3_ascii_tui_lora \
+  --num-train-epochs 3 \
+  --logging-steps 1 \
+  --eval-steps 5 \
+  --save-steps 10
 ```
 
 ### 3) Loss curve visualization
@@ -105,6 +114,22 @@ uv run python scripts/plot_loss_curve.py \
   --output artifacts/qwen3_ascii_tui_lora/loss_curve.png
 ```
 
+### 4) Qualitative sample checks
+
+Script: `scripts/generate_samples.py`
+
+- Loads base model + LoRA adapter and generates topic samples.
+- Saves:
+  - `artifacts/qwen3_ascii_tui_lora/sample_generations.md`
+
+Command:
+
+```bash
+CUDA_VISIBLE_DEVICES=0 uv run python scripts/generate_samples.py \
+  --base-model Qwen/Qwen3-0.6B \
+  --adapter-path artifacts/qwen3_ascii_tui_lora
+```
+
 ## One-command run
 
 ```bash
@@ -117,10 +142,21 @@ This executes:
 2. 100-agent synthetic generation (~1,000 rows)
 3. 4-GPU fine-tuning
 4. loss curve plotting
+5. qualitative sample generation
+
+## Latest Run Snapshot
+
+- Dataset rows: `1000` (`950 train`, `50 eval`)
+- 4-GPU training: completed with `45` train steps over `3` epochs
+- Train loss: `4.125 -> 0.107`
+- Eval loss: `2.061 -> 0.116`
+- Artifacts:
+  - `artifacts/qwen3_ascii_tui_lora/trainer_state.json`
+  - `artifacts/qwen3_ascii_tui_lora/loss_curve.png`
+  - `artifacts/qwen3_ascii_tui_lora/sample_generations.md`
 
 ## Notes
 
 - If your GPU topology differs, keep `--nproc_per_node=4` and set `CUDA_VISIBLE_DEVICES` to the desired four devices.
 - If your account exposes a different model ID than `gpt-5.3`, pass `--model <id>` to generation.
 - Generated data and artifacts are git-ignored by default.
-
