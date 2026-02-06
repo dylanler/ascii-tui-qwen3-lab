@@ -122,6 +122,37 @@ CUDA_VISIBLE_DEVICES=0 uv run python scripts/generate_samples.py \
   --adapter-path artifacts/qwen3_ascii_tui_lora
 ```
 
+### 5) Serve the fine-tuned adapter with vLLM
+
+Scripts:
+- `scripts/start_vllm_endpoint.sh`
+- `scripts/test_vllm_endpoint.py`
+
+Start an OpenAI-compatible endpoint on one GPU:
+
+```bash
+CUDA_VISIBLE_DEVICES=0 bash scripts/start_vllm_endpoint.sh
+```
+
+If port `8000` is busy:
+
+```bash
+CUDA_VISIBLE_DEVICES=0 PORT=8010 bash scripts/start_vllm_endpoint.sh
+```
+
+Defaults:
+- endpoint: `http://127.0.0.1:8000/v1`
+- base model alias: `qwen3-ascii-tui-base`
+- LoRA model name (use this for inference): `qwen3-ascii-tui-lora`
+
+In another terminal, run a test request:
+
+```bash
+uv run python scripts/test_vllm_endpoint.py \
+  --base-url http://127.0.0.1:8000/v1 \
+  --model qwen3-ascii-tui-lora
+```
+
 ## One-command run
 
 ```bash

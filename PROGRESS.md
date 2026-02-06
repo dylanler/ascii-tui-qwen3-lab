@@ -31,6 +31,8 @@
 - [x] Confidence gate passed:
   - strong train/eval loss reduction over full run
   - required topics present in dataset and qualitative output file
+- [x] Added vLLM OpenAI-compatible endpoint scripts for LoRA serving + endpoint smoke test client.
+- [x] Validated vLLM endpoint startup and live inference on `http://127.0.0.1:8010/v1`.
 
 ## Run Metrics (2026-02-06)
 
